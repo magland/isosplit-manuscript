@@ -1,6 +1,8 @@
 function FIG_decision_boundaries
 
-addpath('../../../core');
+mfile_path=fileparts(mfilename('fullpath'));
+addpath('~/dev/mountainsort');
+ms_setup_path;
 
 close all;
 
@@ -14,8 +16,8 @@ simoptions.shapes={[2,2,0],[0.5,0.5,0],[1.5,0.4,0]};
 
 [X,labels]=generate_samples_decision_boundaries(simoptions);
 
-labels1=ss_cluster(X,struct('cmethod','iso'));
-labels2=ss_cluster(X,struct('cmethod','k++','K',3));
+labels1=isosplit2(X);
+labels2=local_kmeans_sorber(X,3);
 
 figure;
 set(gcf,'Position',[50,50,1600,500]);
@@ -27,10 +29,10 @@ title('Truth');
 
 subplot_jfm(1,3,2,subplot_opts);
 plot_samples_2d(X,labels1); hold on;
-pt1=[1.9,4.0];
+pt1=[1.1,4.0];
 pt2=[-5.2,2.9]; pt2=pt2+(pt2-pt1)*10;
-pt3=[2.4,5.1]; pt3=pt3+(pt3-pt1)*10;
-pt1b=[1.7,4.1];
+pt3=[2,5.1]; pt3=pt3+(pt3-pt1)*10;
+pt1b=[1.7,3.6];
 pt4=[4.2,1.2]; pt4=pt4+(pt4-pt1b)*10;
 plot([pt1b(1),pt2(1)],[pt1b(2),pt2(2)],'k--');
 plot([pt1(1),pt3(1)],[pt1(2),pt3(2)],'k--');
@@ -49,7 +51,7 @@ plot([pt1(1),pt4(1)],[pt1(2),pt4(2)],'k--');
 title('K-means');
 
 set(gcf,'paperposition',[0,0,8,3]);
-print('../decision_boundaries.eps','-depsc2');
+print([mfile_path,'/../images/decision_boundaries.eps'],'-depsc2');
 
 end
 
@@ -97,5 +99,50 @@ xmin=min(samples(1,:)); xmax=max(samples(1,:));
 ymin=min(samples(2,:)); ymax=max(samples(2,:));
 xlim([floor(xmin-2),ceil(xmax+2)]);
 ylim([floor(ymin-2),ceil(ymax+2)]);
+
+end
+
+function [L,C]=local_kmeans_sorber(X,k)
+%KMEANS Cluster multivariate data using the k-means++ algorithm.
+%   [L,C] = kmeans(X,k) produces a 1-by-size(X,2) vector L with one class
+%   label per column in X and a size(X,1)-by-k matrix C containing the
+%   centers corresponding to each class.
+
+%   Version: 2013-02-08
+%   Authors: Laurent Sorber (Laurent.Sorber@cs.kuleuven.be)
+%
+%   References:
+%   [1] J. B. MacQueen, "Some Methods for Classification and Analysis of 
+%       MultiVariate Observations", in Proc. of the fifth Berkeley
+%       Symposium on Mathematical Statistics and Probability, L. M. L. Cam
+%       and J. Neyman, eds., vol. 1, UC Press, 1967, pp. 281-297.
+%   [2] D. Arthur and S. Vassilvitskii, "k-means++: The Advantages of
+%       Careful Seeding", Technical Report 2006-13, Stanford InfoLab, 2006.
+
+L = [];
+L1 = 0;
+
+while length(unique(L)) ~= k
+    
+    % The k-means++ initialization.
+    C = X(:,1+round(rand*(size(X,2)-1)));
+    L = ones(1,size(X,2));
+    for i = 2:k
+        D = X-C(:,L);
+%        D = cumsum(sqrt(dot(D,D,1)));  % orig, seems to be dist (l=1)
+        D = cumsum(dot(D,D,1));  % Arthur-Vassilvitskii use dist^2 (l=2)
+        if D(end) == 0, C(:,i:k) = X(:,ones(1,k-i+1)); return; end
+        C(:,i) = X(:,find(rand < D/D(end),1));
+        [~,L] = max(bsxfun(@minus,2*real(C'*X),dot(C,C,1).'));
+    end
+    
+    % The k-means algorithm.
+    while any(L ~= L1)
+        L1 = L;
+        for i = 1:k, l = L==i; C(:,i) = sum(X(:,l),2)/sum(l); end
+        [~,L] = max(bsxfun(@minus,2*real(C'*X),dot(C,C,1).'),[],1);
+    end
+    
+end
 
 end

@@ -2,30 +2,30 @@ function FIG_create_simulation_figures
 
 close all;
 
-hgload('../simulation1.fig');
+hgload('../images/simulation1.fig');
 set_props;
 set(gcf,'paperposition',[0,0,9,6]);
-print('../simulation1.eps','-depsc2');
+print('../images/simulation1.eps','-depsc2');
 
-hgload('../simulation2.fig');
+hgload('../images/simulation2.fig');
 set_props;
 set(gcf,'paperposition',[0,0,9,6]);
-print('../simulation2.eps','-depsc2');
+print('../images/simulation2.eps','-depsc2');
 
-hgload('../simulation3.fig');
+hgload('../images/simulation3.fig');
 set_props;
 set(gcf,'paperposition',[0,0,9,6]);
-print('../simulation3.eps','-depsc2');
+print('../images/simulation3.eps','-depsc2');
 
-hgload('../simulation4.fig');
+hgload('../images/simulation4.fig');
 set_props;
 set(gcf,'paperposition',[0,0,9,6]);
-print('../simulation4.eps','-depsc2');
+print('../images/simulation4.eps','-depsc2');
 
 hgload('../simulation5.fig');
 set_props;
 set(gcf,'paperposition',[0,0,9,6]);
-print('../simulation5.eps','-depsc2');
+print('../images/simulation5.eps','-depsc2');
 
 end
 
