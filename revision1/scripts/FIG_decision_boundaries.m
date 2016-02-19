@@ -33,8 +33,9 @@ pt1=[1.1,4.0];
 pt2=[-5.2,2.9]; pt2=pt2+(pt2-pt1)*10;
 pt3=[2,5.1]; pt3=pt3+(pt3-pt1)*10;
 pt1b=[1.7,3.6];
-pt4=[4.2,1.2]; pt4=pt4+(pt4-pt1b)*10;
-plot([pt1b(1),pt2(1)],[pt1b(2),pt2(2)],'k--');
+pt1c=[1.1,4.0];
+pt4=[4.2,1.9]; pt4=pt4+(pt4-pt1b)*10;
+plot([pt1c(1),pt2(1)],[pt1c(2),pt2(2)],'k--');
 plot([pt1(1),pt3(1)],[pt1(2),pt3(2)],'k--');
 plot([pt1b(1),pt4(1)],[pt1b(2),pt4(2)],'k--');
 title('ISO-SPLIT');
@@ -50,7 +51,9 @@ plot([pt1(1),pt3(1)],[pt1(2),pt3(2)],'k--');
 plot([pt1(1),pt4(1)],[pt1(2),pt4(2)],'k--');
 title('K-means');
 
-set(gcf,'paperposition',[0,0,8,3]);
+set(gcf,'position',[0,0,14*100,4*100]);
+set(gcf,'paperpositionmode','auto');
+%set(gcf,'paperposition',[0,0,14,4]);
 print([mfile_path,'/../images/decision_boundaries.eps'],'-depsc2');
 
 end
@@ -98,7 +101,7 @@ set(gca,'xtick',[],'ytick',[])
 xmin=min(samples(1,:)); xmax=max(samples(1,:));
 ymin=min(samples(2,:)); ymax=max(samples(2,:));
 xlim([floor(xmin-2),ceil(xmax+2)]);
-ylim([floor(ymin-2),ceil(ymax+2)]);
+ylim([floor(ymin-1),ceil(ymax+2)]);
 
 end
 
