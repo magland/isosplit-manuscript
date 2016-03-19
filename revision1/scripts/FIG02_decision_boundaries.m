@@ -1,8 +1,6 @@
 function FIG_decision_boundaries
 
 mfile_path=fileparts(mfilename('fullpath'));
-addpath('~/dev/mountainsort');
-ms_setup_path;
 
 close all;
 
