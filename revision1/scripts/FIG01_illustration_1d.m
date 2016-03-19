@@ -1,7 +1,6 @@
 function FIG_illustration_1d
 
-addpath('../../../core');
-addpath('../../../core/cluster/isosplit');
+disp('Be sure to run mountainlab_setup.m');
 
 close all;
 
@@ -74,7 +73,7 @@ for pass=1:3
 end;
 
 set(gcf,'paperposition',[0,0,12,7]);
-print('../illustration_1d.eps','-depsc2');
+print('../images/illustration_1d.eps','-depsc2');
 
 end
 
