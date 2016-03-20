@@ -204,7 +204,8 @@ The critical step is \emph{ComputeOptimalCutpoint}, which is the 1D clustering p
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{simulation2.eps}
+%%simulation2.eps copied from arxiv submission -- selected example by hand
+\includegraphics[width=5.5in]{images/simulation2.eps}
 \end{center}
 \caption{
 K-means assumes that the cluster populations and variances are all the same. In this example (corresponding to \textbf{Simulation 2 (Anisotropic)} below), two relatively small clusters are merged by k-means while a larger cluster is split. On the other hand, ISO-SPLIT makes no assumptions about relative cluster sizes and is able to handle this situation. Gaussian mixture clustering with unknown K (determined using BIC) also fails in this case. DBSCAN fails because the clusters do not all have the same density. Note that ISO-SPLIT was not given information about the true number of clusters or the expected density.
@@ -214,7 +215,7 @@ K-means assumes that the cluster populations and variances are all the same. In 
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{example_dbscan.eps}
+\includegraphics[width=5.5in]{images/example_dbscan.eps}
 \end{center}
 \caption{
 Unlike ISO-SPLIT, DBSCAN can handle the non-convex situation where clusters cannot be separated by hyperplanes. However, the scale parameter $\epsilon$ must be properly chosen.
@@ -226,7 +227,7 @@ Figure \ref{fig:simulation2} highlights a case where ISO-SPLIT outperforms k-mea
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=2.5in]{nongaussian_histogram.eps}
+\includegraphics[width=2.5in]{images/nongaussian_histogram.eps}
 \end{center}
 \caption{
 Histogram of the 1D probability distribution used to generate skewed, non-Gaussian clusters in Simulation 3. See Equation \eqref{eq:nongaussian}.
@@ -236,7 +237,7 @@ Histogram of the 1D probability distribution used to generate skewed, non-Gaussi
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{simulation1.eps}
+\includegraphics[width=5.5in]{images/simulation1.eps}
 \end{center}
 \caption{
 Example run from \textbf{Simulation 1 (Isotropic)}. All investigated algorithms perform well when clusters are well-spaced and isotropic with equal variances and populations.
@@ -246,7 +247,7 @@ Example run from \textbf{Simulation 1 (Isotropic)}. All investigated algorithms 
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{simulation3.eps}
+\includegraphics[width=5.5in]{images/simulation3.eps}
 \end{center}
 \caption{
 Example run from \textbf{Simulation 3}, with non-Gaussian (skewed) clusters. ISO-SPLIT is density-based and able to handle this situation, whereas k-means and GMM fail due to violation of their underlying assumptions. Despite being density based, DBSCAN also fails since it cannot handle datasets containing clusters of widely differing densities.
@@ -256,7 +257,7 @@ Example run from \textbf{Simulation 3}, with non-Gaussian (skewed) clusters. ISO
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{simulation4.eps}
+\includegraphics[width=5.5in]{images/simulation4.eps}
 \end{center}
 \caption{
 Example run from \textbf{Simulation 4} in which clusters are tightly packed ($z_0=1.7$). The two density based methods (ISO-SPLIT and DBSCAN) erroneously merge adjacent clusters in this case because they are not sufficiently separated by density.
@@ -266,7 +267,7 @@ Example run from \textbf{Simulation 4} in which clusters are tightly packed ($z_
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{simulation5.eps}
+\includegraphics[width=5.5in]{images/simulation5.eps}
 \end{center}
 \caption{
 Projection onto two dimensions of an example run from \textbf{Simulation 5} with the number of dimensions equal to $n=6$. ISO-SPLIT performs well in this case whereas all other algorithms struggle apart from GMM when given the correct $K$.
