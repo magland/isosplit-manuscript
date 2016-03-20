@@ -43,7 +43,7 @@ labels=ss_cluster(samples,opts);
 end
 
 function labels=cluster_alg_iso(samples,opts)
-[labels,info]=isosplit(samples,opts);
+[labels,info]=isosplit2(samples,opts);
 %disp(info);
 end
 
