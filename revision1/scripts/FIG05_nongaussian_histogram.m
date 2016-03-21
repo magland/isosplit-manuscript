@@ -8,7 +8,8 @@ set(gcf,'Color','w');
 set(gca,'xtick',[])
 set(gca,'ytick',[])
 
-set(gcf,'paperposition',[0,0,5,3.5]);
-print('../images/nongaussian_histogram.eps','-depsc2');
+% Save .eps by hand
+%set(gcf,'paperposition',[0,0,5,3.5]);
+%print('../images/nongaussian_histogram.eps','-depsc2');
 
 end
