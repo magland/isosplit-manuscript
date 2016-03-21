@@ -41,7 +41,7 @@ for cc=1:3
 	set(gca,'xticklabel',{'S1: Isotropic','S2: Anisotropic','S3: Non-Gaussian','S4: Packed','S5: High-dimensional'});
 	set(gcf,'PaperPosition',[0,0,12,5]);
 	if (cc==2)
-		print(sprintf('%s/../simulation_result_graph.eps',mfile_path),'-depsc2');
+		print(sprintf('%s/../images/simulation_result_graph.eps',mfile_path),'-depsc2');
 	end;
 end;
 
