@@ -49,31 +49,30 @@ for pass=1:3
 
 	spacings=X(2:end)-X(1:end-1);
 	XX=(X(1:end-1)+X(2:end))/2;
-	densities=1./spacings;
-	D=log(densities);
 
-	Dfit=jisotonic(D,'updown');
+	Sfit=jisotonic(spacings,'downup');
 	subplot_jfm(3,3,4+(pass-1),subplot_opts);
-	h=plot(XX,D,'b',XX,Dfit,'k');
+	h=plot(XX,spacings,'b',XX,Sfit,'k');
 	set(h(2),'linewidth',3);
 	xlim(xx);
 	set(gca,'xtick',[]);
-	if (pass==1) ylabel('Log density'); end;
+	if (pass==1) ylabel('Spacings'); end;
 	text(0.05,0.9,letters{pass}.b,'FontSize',fontsize,'Units','normal');
 
-	Dresid=D-Dfit;
-	Dresidfit=jisotonic(Dresid,'downup');
+	Sresid=spacings./Sfit;
+	Sresidfit=jisotonic(Sresid,'updown');
 	subplot_jfm(3,3,7+(pass-1),subplot_opts);
-	h=plot(XX,Dresid,'b',XX,Dresidfit,'k');
+	h=plot(XX,Sresid,'b',XX,Sresidfit,'k');
 	set(h(2),'linewidth',3);
-	xlim(xx); ylim(yy);
+	xlim(xx); %ylim(yy);
 	set(gca,'xtick',[]);
-	if (pass==1) ylabel('Log density residual'); end;
+	if (pass==1) ylabel('Normalized spacings'); end;
 	text(0.05,0.9,letters{pass}.c,'FontSize',fontsize,'Units','normal');
 end;
 
-set(gcf,'paperposition',[0,0,12,7]);
-print('../images/illustration_1d.eps','-depsc2');
+%EXPORTED .eps by hand!!
+%set(gcf,'paperposition',[0,0,12,7]);
+%print('../images/illustration_1d.eps','-depsc2');
 
 end
 
