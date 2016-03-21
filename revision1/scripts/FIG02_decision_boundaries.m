@@ -49,10 +49,14 @@ plot([pt1(1),pt3(1)],[pt1(2),pt3(2)],'k--');
 plot([pt1(1),pt4(1)],[pt1(2),pt4(2)],'k--');
 title('K-means');
 
+
 set(gcf,'position',[0,0,14*100,4*100]);
-set(gcf,'paperpositionmode','auto');
+
+%EXPORTED .eps by hand!!
+
+%set(gcf,'paperpositionmode','auto');
 %set(gcf,'paperposition',[0,0,14,4]);
-print([mfile_path,'/../images/decision_boundaries.eps'],'-depsc2');
+%print([mfile_path,'/../images/decision_boundaries.eps'],'-depsc2');
 
 end
 
