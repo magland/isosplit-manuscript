@@ -241,8 +241,10 @@ text(0.05,0.92,'C','FontSize',16,'Units','normalize');
 text(0.25,0.4,sprintf('y = %.0f + %.1fx',tmp3.coeffs(2),tmp3.coeffs(1)),'Units','normalize','FontSize',24);
 
 mfile_path=fileparts(mfilename('fullpath'));
-set(gcf,'paperposition',[0,0,12,3]);
-print([mfile_path,'/../images/computation_times_01.eps'],'-depsc2');
+%EXPORTED BY HAND!!
+
+%set(gcf,'paperposition',[0,0,12,4]);
+%print([mfile_path,'/../images/computation_times_01.eps'],'-depsc2');
 
 end
 
