@@ -1,21 +1,18 @@
-function FIG_computation_times
-
-addpath('../../../core');
-addpath('../../../core/cluster/isosplit');
+function FIG13_computation_times
 
 close all;
 
 simopts.num_repeats=50;
 
- %simulation_time_increasing_N(simopts);
- %simulation_time_increasing_num_clusters(simopts);
- %simulation_time_increasing_ndims(simopts);
+% simulation_time_increasing_N(simopts);
+% simulation_time_increasing_num_clusters(simopts);
+% simulation_time_increasing_ndims(simopts);
 
-%simulation_time_create_figure;
-
-%simulation_alpha_dependence(simopts);
- simulation_K_dependence(simopts);
+% simulation_alpha_dependence(simopts);
+% simulation_K_dependence(simopts);
 % simulation_m_max_dependence(simopts);
+ 
+simulation_time_create_figure;
 
 end
 
@@ -49,7 +46,7 @@ for rr=1:num_repeats
 	
 	[clusters,samples,labels]=generate_random_clusters(opts);
 	tA=tic;
-	isosplit(samples,struct('K',24));
+	isosplit2(samples,struct('K',24));
 	elapsed=toc(tA);
 	fprintf('%.4f s\n',elapsed);
 	times(rr,jj)=elapsed;
@@ -100,7 +97,7 @@ for rr=1:num_repeats
 	
 	[clusters,samples,labels]=generate_random_clusters(opts);
 	tA=tic;
-	isosplit(samples,struct('K',K));
+	isosplit2(samples,struct('K',K));
 	elapsed=toc(tA);
 	fprintf('%.4f s\n',elapsed);
 	times(rr,jj)=elapsed;
@@ -158,7 +155,7 @@ for rr=1:num_repeats
 	[clusters,samples,labels]=generate_random_clusters(opts);
 	samples=cat(1,samples,randn(opts.ndims-2,size(samples,2)));
 	tA=tic;
-	[~,info]=isosplit(samples,struct('K',K));
+	[~,info]=isosplit2(samples,struct('K',K));
 	elapsed=toc(tA);
 	fprintf('%.4f s\n',elapsed);
 	times(rr,jj)=elapsed;
@@ -203,25 +200,32 @@ subplot_opts.yspacing=0.04;
 subplot_opts.ymargin=0.1;
 subplot_opts.yoffset=0.03;
 
+font_size_1=20;
+font_size_2=16;
+
 tmp1.coeffs=polyfit(tmp1.Ns,mean(tmp1.times*1000,1),1);
 disp(tmp1.coeffs);
 tmp1.times_fit=polyval(tmp1.coeffs,tmp1.Ns);
 subplot_jfm(rr,cc,1,subplot_opts);
 plot(tmp1.Ns,mean(tmp1.times*1000,1),'b.',tmp1.Ns,mean(tmp1.times*1000,1),'b',tmp1.Ns,tmp1.times_fit,'r');
-xlabel('N = number of samples');
-ylabel(ystr);
+xlabel('N = number of samples','FontSize',font_size_1);
+ylabel(ystr,'FontSize',font_size_1);
+set(gca,'FontSize',font_size_2);
+tmp=ylim; ylim([0,tmp(2)]);
 text(0.05,0.92,'A','FontSize',16,'Units','normalize');
-text(0.15,0.7,sprintf('y = %.2f + %.2fx',tmp1.coeffs(2),tmp1.coeffs(1)),'Units','normalize');
+text(0.25,0.4,sprintf('y = %.0f + %.3fx',tmp1.coeffs(2),tmp1.coeffs(1)),'Units','normalize','FontSize',24);
 
 tmp2.coeffs=polyfit(tmp2.vals,mean(tmp2.times*1000,1),1);
 disp(tmp2.coeffs);
 tmp2.times_fit=polyval(tmp2.coeffs,tmp2.vals);
 subplot_jfm(rr,cc,2,subplot_opts);
 plot(tmp2.vals,mean(tmp2.times*1000,1),'b.',tmp2.vals,mean(tmp2.times*1000,1),'b',tmp2.vals,tmp2.times_fit,'r');
-xlabel('K_{true} = true number of clusters');
-ylabel(ystr);
+xlabel('K_{true} = true number of clusters','FontSize',font_size_1);
+ylabel(ystr,'FontSize',font_size_1);
+set(gca,'FontSize',font_size_2);
+tmp=ylim; ylim([0,tmp(2)]);
 text(0.05,0.92,'B','FontSize',16,'Units','normalize');
-text(0.15,0.7,sprintf('y = %.2f + %.2fx',tmp2.coeffs(2),tmp2.coeffs(1)),'Units','normalize');
+text(0.25,0.4,sprintf('y = %.0f + %.2fx',tmp2.coeffs(2),tmp2.coeffs(1)),'Units','normalize','FontSize',24);
 
 tmp3.coeffs=polyfit(tmp3.vals,mean(tmp3.times*1000,1),1);
 disp(tmp3.coeffs);
@@ -229,13 +233,16 @@ tmp3.times_fit=polyval(tmp3.coeffs,tmp3.vals);
 subplot_jfm(rr,cc,3,subplot_opts);
 plot(tmp3.vals,mean(tmp3.times*1000,1),'b.',tmp3.vals,mean(tmp3.times*1000,1),'b',tmp3.vals,tmp3.times_fit,'r');
 %plot(tmp3.vals,mean(tmp3.times*1000,1),'b.',tmp3.vals,mean(tmp3.times*1000,1),'b');
-xlabel('n = number of dimensions');
-ylabel(ystr);
+xlabel('n = number of dimensions','FontSize',font_size_1);
+ylabel(ystr,'FontSize',font_size_1);
+set(gca,'FontSize',font_size_2);
+tmp=ylim; ylim([0,tmp(2)]);
 text(0.05,0.92,'C','FontSize',16,'Units','normalize');
-text(0.15,0.7,sprintf('y = %.2f + %.2fx',tmp3.coeffs(2),tmp3.coeffs(1)),'Units','normalize');
+text(0.25,0.4,sprintf('y = %.0f + %.1fx',tmp3.coeffs(2),tmp3.coeffs(1)),'Units','normalize','FontSize',24);
 
+mfile_path=fileparts(mfilename('fullpath'));
 set(gcf,'paperposition',[0,0,12,3]);
-print('../computation_times_01.eps','-depsc2');
+print([mfile_path,'/../images/computation_times_01.eps'],'-depsc2');
 
 end
 
@@ -266,7 +273,7 @@ for jj=1:mm
 	for rr=1:num_repeats
 		[clusters,samples,labels]=generate_random_clusters(opts);
 		tA=tic;
-		labels1=isosplit(samples,struct('K',24,'isocut_threshold',alpha));
+		labels1=isosplit2(samples,struct('K',24,'isocut_threshold',alpha));
 		elapsed=toc(tA);
 		acc=mean(compute_accuracies(labels,labels1));
 		fprintf('alpha=%.3f, %.4f, %.4f s\n',alpha,acc,elapsed);
@@ -320,7 +327,7 @@ for jj=1:mm
 	for rr=1:num_repeats
 		[clusters,samples,labels]=generate_random_clusters(opts);
 		tA=tic;
-		labels1=isosplit(samples,struct('K',vals(jj)));
+		labels1=isosplit2(samples,struct('K',vals(jj)));
 		elapsed=toc(tA);
 		acc=mean(compute_accuracies(labels,labels1));
 		fprintf('K=%.d, %.4f, %.4f s\n',vals(jj),acc,elapsed);
@@ -420,7 +427,7 @@ for jj=1:mm
 	for rr=1:num_repeats
 		[clusters,samples,labels]=generate_random_clusters(opts);
 		tA=tic;
-		labels1=isosplit(samples,struct('K',24,'m_max',vals(jj)));
+		labels1=isosplit2(samples,struct('K',24,'m_max',vals(jj)));
 		elapsed=toc(tA);
 		acc=mean(compute_accuracies(labels,labels1));
 		fprintf('K=%.d, %.4f, %.4f s\n',vals(jj),acc,elapsed);
