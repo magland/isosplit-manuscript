@@ -392,11 +392,13 @@ In general, we see from the overall summary in Figure~\ref{fig:result_bars} that
 \section {Application to spike sorting data}
 \label{s:spike}
 
-The algorithms considered in this paper were applied to spike sorting of neural electrophysiological signals, that is, the clustering of spiking events in a time series into $K$ clusters that can often be associated with individual neurons. Clustering is a key step in spike sorting. Specifically, we took 7 channels of data from a set of adjacent electrodes in a multielectrode array which records voltages from an {\em ex vivo} monkey retina (\cite{litke}); the 2 minutes of 20 kHz sampled time series data was supplied to us by the Chichilnisky Lab at Stanford. A set of points in $\mathbb{R}^{10}$ that needed to be clustered was created as follows. Firstly the time series was high-pass filtered at 300 Hz, then windows of time series of length 60 samples were extracted in which the minimum voltage dropped below $-120 \mu$V. (We also applied an automatic procedure to remove time clips that did not appear to be single spike events.) This gave 7275 time clips. The data in each clip was upsampled by a factor of 3 using Hann-windowed sync interpolation, then negative-peak aligned to the central time point, then stacked to give a length-1470 column vector. Dimension reduction to 10 dimensions was finally done using PCA; that is, the 1470-by-7275 matrix $A$ was replaced by the first 10 columns of $V^T A$, where $V$ is the matrix whose columns are the eigenvectors of $AA^T$ ordered by descending eigenvalue. Columns of the resulting $A$ gave the points to cluster.
+The algorithms considered in this paper were applied to spike sorting of neural electrophysiological signals, that is, the clustering of spiking events in a time series into $K$ clusters that can often be associated with individual neurons. Clustering is a key step in spike sorting.
 
-The resulting clustering (neuron labelings) are shown in Figure \ref{fig:real_data_1} with the centroid waveforms for each cluster displayed in Figure \ref{fig:real_data_2}. The adjustable parameters for k-means, GMM, and DBSCAN were carefully chosen to yield the same number of clusters ($K=8$) as ISO-SPLIT. Each of the algorithms produced a splitting into qualitatively distinct centroid waveforms, suggesting that at least 8 detectable neural units are present. Various validation methods, and human judgements, are now commonly applied to determine whether each cluster is a single neural unit, e.g., \cite{Hill2011}; we do not attempt to perform that here.
+[Boilerplate text for describing dataset: dl12\_20151208\_NNF\_r1\_tet16\_17]
 
-We emphasize that ISO-SPLIT required no adjustment of free parameters, in contrast to all but the (poorly-performing) GMM with BIC. Indeed, when the BIC was used to select $K$ in GMM, many more clusters were identified, most of them duplicates, or artificially split clusters (see Figure \ref{fig:real_data_2}). An additional run of DBSCAN with $\epsilon$ reduced from $70$ to $60$ identified an additional cluster, demonstrating the sensitivity of the output to adjustments in this parameter. Further analysis is required to determine which results are closer to the truth.
+After standard preprocessing, including bandpass filter and channel whitening, spiking events were detected at timepoints where the signal exceeded a fixed threshold (around 5 standard deviations above the mean). Time windows (or clips) of 3.3 milliseconds (100 timepoints) were extracted around each identified timepoint. These clips were mapped into PCA space and ISO-SPLIT clustering was applied. 
+
+The resulting clustering (neuron labelings) along with the centroid waveforms are shown in Figure \ref{fig:real_data_1}. Various validation methods, and human judgements, are now commonly applied to determine whether each cluster is a single neural unit, e.g., \cite{Hill2011}; we do not attempt to perform that here. We emphasize that ISO-SPLIT required no adjustment of free parameters.
 
 \begin{figure}
 \begin{center}
@@ -405,21 +407,9 @@ We emphasize that ISO-SPLIT required no adjustment of free parameters, in contra
 \caption{
 Needed
 %  Spike sorting on real data. The first three dimensions of the 10-dimensional PCA feature space are shown, with coloring indicating cluster (neuronal unit) membership produced by each clustering algorithm indicated. The classifications were highly consistent between the various algorithms when k-means, GMM, and DBSCAN were tuned to yield the same number of clusters as ISO-SPLIT.
-  The red dotted lines indicate axes intersecting at the origin.
 }
 \label{fig:real_data_1}
 \end{figure}
-
-\begin{figure}
-\begin{center}
-\includegraphics[width=5.5in]{real_data_2.eps}
-\end{center}
-\caption{
-Spike waveforms corresponding to the centroids of the clusters in Figure \ref{fig:real_data_1}. Rows represent electrode channels and columns represent distinct neurons/clusters.
-}
-\label{fig:real_data_2}
-\end{figure}
-
 
 \spacingset{1.0} % Change spacing for table
 %\def\arraystretch{1}
