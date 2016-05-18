@@ -12,7 +12,7 @@
 
 %\pdfminorversion=4
 % NOTE: To produce blinded version, replace "0" with "1" below.
-\newcommand{\blind}{1}
+\newcommand{\blind}{0}
 
 % DON'T change margins - should be 1 inch all around.
 \addtolength{\oddsidemargin}{-.5in}%
@@ -32,7 +32,7 @@
 
 \if0\blind
 {
-  \title{\bf Unimodal clustering with a minimum of adjustable parameters: ISO-SPLIT}
+  \title{\bf Unimodal clustering using isotonic regression: ISO-SPLIT}
   \author{Jeremy F. Magland\hspace{.2cm}\\
     Simons Center for Data Analysis\\
     and \\
@@ -54,7 +54,7 @@
 
 \bigskip
 \begin{abstract}
-A limitation of many clustering algorithms is the requirement to tune adjustable parameters for each application or even for each dataset. Some algorithms require an \emph{a priori} estimate of the number of clusters while density-based techniques usually require a scale parameter. Other parametric methods, such as mixture modeling, make assumptions about the underlying cluster distributions. Here we introduce a non-parametric clustering method that does not involve tunable parameters and only assumes that clusters are unimodal, in the sense that they have a single point of maximal density when projected onto any line, and that clusters are separated from one another by a separating hyperplane of relatively lower density. The technique uses a non-parametric variant of Hartigan's dip statistic using isotonic regression as the kernel operation repeated at every iteration. We compare the method against k-means++, DBSCAN, and Gaussian mixture algorithms and show in simulations that it performs better than these standard methods in many situations. The algorithm's utility is also demonstrated in the context of ``spike sorting'' of neural electrical recordings. The source code for the algorithm is freely available.
+A limitation of many clustering algorithms is the requirement to tune adjustable parameters for each application or even for each dataset. Some techniques require an \emph{a priori} estimate of the number of clusters while density-based techniques usually require a scale parameter. Other parametric methods, such as mixture modeling, make assumptions about the underlying cluster distributions. Here we introduce a non-parametric clustering method that does not involve tunable parameters and only assumes that clusters are unimodal, in the sense that they have a single point of maximal density when projected onto any line, and that clusters are separated from one another by a separating hyperplane of relatively lower density. The technique uses a non-parametric variant of Hartigan's dip statistic using isotonic regression as the kernel operation repeated at every iteration. We compare the method against k-means++, DBSCAN, and Gaussian mixture methods and show in simulations that it performs better than these standard methods in many situations. The algorithm is suited for low-dimensional datasets with a large number of observations, and was motivated by the problem of ``spike sorting'' in neural electrical recordings. Source code is freely available.
 \end{abstract}
 
 \noindent%
@@ -66,28 +66,32 @@ A limitation of many clustering algorithms is the requirement to tune adjustable
 
 \section {Introduction}
 
-Unsupervised data clustering is a methodology for automatically partitioning a set of data points in a manner that reflects the underlying structure of the data. In many clustering applications with continuous data in $n$ dimensions, clusters are expected to have a core region of high density and to be separated from one another by a region of relatively lower density. The motivating application for the authors is spike sorting of neuron firing events recorded electrically, for which this property has been found to hold experimentally (\cite{tiganj,vargas}). We expect this work to be useful in a variety of other clustering applications.
+Unsupervised data clustering is a methodology for automatically partitioning a set of data points in a manner that reflects the underlying structure of the data. In many clustering applications with continuous data in $p$ dimensions, clusters are expected to have a core region of high density and to be separated from one another by a region of relatively lower density. The motivating application for the authors is spike sorting of neuron firing events recorded electrically, for which this property has been found to hold experimentally \citep{tiganj,vargas}. We expect this work to be useful in a variety of other clustering applications, particularly in cases with a large number of observations in a low dimensional feature space.
 
-A limitation of most clustering algorithms is the need to tune a set of adjustable parameters. The adjustments may be per application, or even per dataset. For k-means (\cite{kmeans}), the adjustable parameter is $K$, the prospectively estimated number of clusters. For large datasets where dozens of clusters are present, the choice of $K$ is especially problematic. In addition, the output of k-means depends heavily on the initialization step (choosing seed points), and the algorithm is often repeated several times to obtain a more globally optimal solution. K-means++ (\cite{kmeanspp}) does a better job at seeding, but some rerunning is still required. Even with optimal seeding, if some clusters are small or sparse relative to the dominant cluster then they are often merged into nearby clusters. In general, k-means tends to favor artificially splitting larger clusters at the expense of merging smaller ones. A further limitation is that the algorithm assumes isotropic cluster distributions with equal populations and equal variances.
+A limitation of most clustering algorithms is the need to tune a set of adjustable parameters. The adjustments may be per application, or even per dataset. For k-means \citep{kmeans}, the adjustable parameter is $K$, the prospectively estimated number of clusters. For large datasets where dozens of clusters are present, the choice of $K$ is especially problematic. In addition, the output of k-means depends heavily on the initialization step (choosing seed points), and the algorithm is often repeated several times to obtain a more globally optimal solution. K-means++ \citep{kmeanspp} does a better job at seeding, but some rerunning is still required. Even with optimal seeding, if some clusters are small or sparse relative to the dominant cluster then they are often merged into nearby clusters. In general, k-means tends to favor artificially splitting larger clusters at the expense of merging smaller ones. A further limitation is that the algorithm assumes isotropic cluster distributions with equal populations and equal variances.
 
-Gaussian mixture modeling (GMM), usually solved using expectation-maximization (EM) iterations (\cite{em}), is more flexible than k-means since it allows each cluster to be assigned its own multivariate normal distribution. Many variations exist, some of which are outlined in \cite[Ch.~11]{murphy}. While some implementations require prospective knowledge of the number of clusters \cite[Ch.~8]{mixturemodels}, other implementations consider this as a free variable (e.g., \cite{roberts1998bayesian}). The key limitation is that the algorithm assumes that clusters are Gaussian distributed. Furthermore, as in k-means, it can be difficult to find the global solution, especially when the number of clusters is large.
+Gaussian mixture modeling (GMM), usually solved using expectation-maximization (EM) iterations \citep{em}, is more flexible than k-means since it allows each cluster to be assigned its own multivariate normal distribution. Many variations exist, some of which are outlined in \citep[Ch.~11]{murphy}. While some implementations require prospective knowledge of the number of clusters \citep[Ch.~8]{mixturemodels}, other implementations consider this as a free variable \citep[e.g.][]{roberts1998bayesian}. 
+The main limitation is that clusters must be well modeled by Gaussians; furthermore, as in k-means, it can be difficult to find the global solution, especially when the number of clusters is large.
+Recently, mixture models with skew non-Gaussian
+components have been developed \citep[e.g.][]{skewGMM,skewGMM2}. However, the increase in model complexity
+results in a more challenging optimization problem.
 
-Hierarchical clustering \cite[Ch.~14]{zaki-book} does not require specification of the number of clusters ahead of time, but this is because the output is a dendrogram rather than a partition. Thus it cannot immediately be applied to our application of interest. There is a way to obtain an automated partition from the dendrogram, but this involves specifying a criteria for cutting the binary tree (much like specifying $K$). Other choices need to be made for agglomerative hierarchical clustering in order to determine which clusters are merged at each iteration. Furthermore, hierarchical clustering has time complexity at least $O(N^2)$ where $N$ is the size of the dataset \cite[Sec.~14.2.3]{zaki-book}.
+Hierarchical clustering \citep[Ch.~14]{zaki-book} does not require specification of the number of clusters ahead of time, but this is because the output is a dendrogram rather than a partition. Thus it cannot immediately be applied to our application of interest. There is a way to obtain an automated partition from the dendrogram, but this involves specifying a criteria for cutting the binary tree (much like specifying $K$). Other choices need to be made for agglomerative hierarchical clustering in order to determine which clusters are merged at each iteration. Furthermore, hierarchical clustering has time complexity at least $O(n^2)$ where $n$ is the size of the dataset \citep[Sec.~14.2.3]{zaki-book}.
 
-Density-based clustering techniques such as DBSCAN (\cite{dbscan}) are promising since they do not make assumptions about
+Density-based clustering techniques such as DBSCAN \citep{dbscan} are promising since they do not make assumptions about
 data distributions, %(e.g., multivariate gaussian)
 so they can handle clusters with arbitrary non-convex shapes. The drawback is that two parameters must be adjusted depending on the application, including $\epsilon$, a parameter of scale. The algorithm is especially sensitive to this parameter in higher dimensions. A further limitation is that if the clusters
 substantially differ in density, then no choice of $\epsilon$ will simultaneously handle the entire dataset. Thus a scale-independent method using data density is desirable.
 
-Other density-based techniques, such as \cite{mean-shift}, involve the initial step of constructing a continuous non-parametric probability density function \cite[Ch.~15]{zaki-book}. The basic version of the kernel density method (\cite{kernel-density-function-1,kernel-density-function-2}) involves specifying a spatial scale parameter (the so-called bandwidth), and suffers from the same problem as DBSCAN. Variations of this method can automatically estimate an optimal bandwidth (\cite{silverman-density-estimation}), and can even derive a value that is spatially dependent. There are many density-estimation methods to choose from (including \cite{rodriguez-clustering}), but they often depend on adjustable distance parameters.
+Other density-based techniques, such as \citep{mean-shift}, involve the initial step of constructing a continuous non-parametric probability density function \citep[Ch.~15]{zaki-book}. The basic version of the kernel density method \citep{kernel-density-function-1,kernel-density-function-2} involves specifying a spatial scale parameter (the so-called bandwidth), and suffers from the same problem as DBSCAN. Variations of this method can automatically estimate an optimal bandwidth \citep{silverman-density-estimation}, and can even derive a value that is spatially dependent. There are many density-estimation methods to choose from \citep[incluuding][]{rodriguez-clustering}, but they often depend on adjustable distance parameters.
 %such as the coarseness of the grid.
-In general, these methods become computationally intractable in higher dimensions. One such algorithm that has a freely available R implementation is pdfCluster (\cite{pdfcluster}). For even moderately sized datasets, computation time can be prohibitive, as will be shown experimentally, particularly when the number of dimensions is greater than 2 or 3.
+In general, these methods become computationally intractable in higher dimensions.
 
 Here we introduce an efficient density-based, scale-independent clustering technique suited for situations where clusters are expected to be unimodal and when any pair of distinct clusters may be separated by a hyperplane. We say a cluster is {\em unimodal} if it arises from a distribution that has a single point of maximum density when projected onto ony line. Thus, our assumption is that the projection of any two clusters onto the normal of the dividing hyperplane gives a bimodal distribution separating the clusters at its local minimum. Loosely speaking, this is guaranteed when the clusters are sufficiently spaced and have convex shapes.
 
-In addition to being density-based, our algorithm has the flavor of agglomerative hierarchical clustering as well as the EM-style iterative approach of k-means. The algorithm uses a non-parametric procedure for splitting one-dimensional distributions based on a modified Hartigan's dip statistic (\cite{hartigan1985dip}) and isotonic regression. Neither isotonic regression nor Hartigan's method involve adjustable parameters (aside from selection of a statistical significance threshold). Thus no scale parameter is needed for density estimation. Furthermore, since the core step performed at each iteration is one-dimensional (1D) clustering applied to projections of data subsets onto lines, we avoid the curse of dimensionality (the tradeoff being that we cannot handle clusters of arbitrary shape).
+In addition to being density-based, our technique has the flavor of agglomerative hierarchical clustering as well as the EM-style iterative approach of k-means. The algorithm uses a non-parametric procedure for splitting one-dimensional distributions based on a modified Hartigan's dip statistic \citep{hartigan1985dip} and isotonic regression. Neither isotonic regression nor Hartigan's method involve adjustable parameters (aside from selection of a statistical significance threshold). In particular, no scale parameter is needed for density estimation. Furthermore, since the core step performed at each iteration is one-dimensional (1D) clustering applied to projections of data subsets onto lines, we avoid the curse of dimensionality (the tradeoff being that we cannot handle clusters of arbitrary shape).
 
-This paper is organized as follows. First we describe an algorithm for splitting a 1D sample into unimodal clusters. This algorithm forms the basis of the $n$-dimensional clustering technique, ISO-SPLIT, defined in Section 3. Simulation results are presented in Section 4, comparing ISO-SPLIT with three standard clustering techniques. In addition to quantitative comparisons using a measure of accuracy, examples illustrate situations where each algorithm performs best. The fifth section is an application of the algorithm to spike sorting of neuronal data. Next we discuss computational efficiency and scaling properties. Finally, Section 8 summarizes the results and discusses the limitations of the method. The appendices cover implementation details for isotonic regression, generation of synthetic datasets for simulations, and provide evidence for insensitivity to parameter adjustments.
+This paper is organized as follows. First we describe an algorithm for splitting a 1D sample into unimodal clusters. This procedure forms the basis of the $p$-dimensional clustering technique, ISO-SPLIT, defined in Section 3. Simulation results are presented in Section 4, comparing ISO-SPLIT with three standard clustering techniques. In addition to quantitative comparisons using a measure of accuracy, examples illustrate situations where each algorithm performs best. The fifth section is an application of the algorithm to spike sorting of neuronal data. Next we discuss computational efficiency and scaling properties. Finally, Section 8 summarizes the results and discusses the limitations of the method. The appendices cover implementation details for isotonic regression, generation of synthetic datasets for simulations, and provide evidence for insensitivity to parameter adjustments.
 
 
 \begin{figure}
@@ -96,7 +100,7 @@ This paper is organized as follows. First we describe an algorithm for splitting
 \includegraphics[width=5.5in]{images/illustration_1d.eps}
 \end{center}
 \caption{
-(A,B,C) Histograms for three simulated 1D distributions with $N=1000$ datapoints. The first represents a single cluster whereas the second and third are sampled from bimodal probability distributions. (D,E,F) show the corresponding sequence of spacings (finite differences) between adjacent points. The dark curves are the outputs of down-up isotonic regression (defined in Section \ref{clustering_1d} and Appendix \ref{appendixUpdown}) for approximating these series. (G,H,I) show the corresponding normalized spacings that are fit using up-down isotonic regression. The peaks in the dark curves of (H) and (I) indicate that the set of samples should be split into two clusters, whereas the dip in (G) is not used to split distribution since the unimodality hypothesis in this case is not rejected.
+(A,B,C) Histograms for three simulated 1D distributions with $n=1000$ datapoints. The first represents a single cluster whereas the second and third are sampled from bimodal probability distributions. (D,E,F) show the corresponding sequence of spacings (finite differences) between adjacent points. The dark curves are the outputs of down-up isotonic regression (defined in Section \ref{clustering_1d} and Appendix \ref{appendixUpdown}) for approximating these series. (G,H,I) show the corresponding normalized spacings that are fit using up-down isotonic regression. The peaks in the dark curves of (H) and (I) indicate that the set of samples should be split into two clusters, whereas the dip in (G) is not used to split distribution since the unimodality hypothesis in this case is not rejected.
 }
 \label{fig:plots_1d}
 \end{figure}
@@ -104,23 +108,23 @@ This paper is organized as follows. First we describe an algorithm for splitting
 \section {Clustering in one dimension}
 \label{clustering_1d}
 
-Any algorithm overcoming the above limitations must at least be able to do so in the simplest, 1D case ($n=1$). Here we develop a non-parametric approach to 1D clustering using a statistical test for unimodality and isotonic regression. The procedure will then be used as the kernel operation in the more general situation ($n\geq2$) as described in Section~\ref{isosplit-algorithm}.
+Any approach overcoming the above limitations must at least be able to do so in the simplest, 1D case ($p=1$). Here we develop a non-parametric approach to 1D clustering using a statistical test for unimodality and isotonic regression. The procedure will then be used as the kernel operation in the more general situation ($p\geq2$) as described in Section~\ref{isosplit-algorithm}.
 
 Clustering in 1D is unique because the input data can be sorted. The problem reduces to selecting cut points (real numbers between adjacent data points) that split the data into $K$ clusters, each corresponding to an interval on the real line. We assume that the clusters are unimodal so that adjacent clusters are separated by a region of relatively lower density. For simplicity we will describe an algorithm for deciding whether there is one cluster, or more than one cluster. In the latter case, a single cut point is determined representing the boundary separating one pair of adjacent clusters. Note that once the data have been split, the same algorithm may then be applied recursively on the left and right portions leading to further subdivisions, converging when no more splitting occurs. Thus the algorithm described here may be used as a basis for general 1D clustering.
 
-Let $x_1<\dots<x_N$ be the sorted (assumed distinct\footnote{The data are assumed to be independent samples from a continuous probability distribution, thus distinct with probability one. More details are given in the discussion.}) real numbers (input data samples). Our fundamental assumption is that two adjacent clusters are always separated by a region of lower density. In other words, if $a_1$ and $a_2$ are the \emph{centers} of two adjacent 1D clusters, then there exists a cut point $a_1<c<a_2$ such that the density near $c$ is significantly less than the densities near both $a_1$ and $a_2$. The challenge is to define the notion of density near a point. The usual approach is to use histogram binning or kernel density methods. However, as described above, we want to avoid choosing a length scale $\epsilon$.
+Let $x_1<\dots<x_n$ be the sorted (assumed distinct\footnote{The data are assumed to be independent samples from a continuous probability distribution, thus distinct with probability one. More details are given in the discussion.}) real numbers (input data samples). Our fundamental assumption is that two adjacent clusters are always separated by a region of lower density. In other words, if $a_1$ and $a_2$ are the \emph{centers} of two adjacent 1D clusters, then there exists a cut point $a_1<c<a_2$ such that the density near $c$ is significantly less than the densities near both $a_1$ and $a_2$. The challenge is to define the notion of density near a point. The usual approach is to use histogram binning or kernel density methods. However, as described above, we want to avoid choosing a length scale $\epsilon$.
 
 Instead we use a variant of Hartigan's dip test. The null hypothesis is that the set $X=\{x_j\}$ is an independent sampling of a unimodal probability density $f(x)$, which by definition is increasing on $[-\infty,c]$ and decreasing on $[c,\infty]$. The dip statistic is the Kolmogorov-Smirnov distance
 $$D_X = \{\sup_x |F(x)-S_X(x)|\},$$
 where
 $$S_X(x)=\#\{j:x_j\leq x\}$$
-is the empirical distribution and $F$ is a unimodal cumulative distribution function that approximates $S_X$. In contrast to Hartigan's original method, we use down-up isotonic regression to determine $F$. As outlined in Appendix \ref{appendixUpdown}, down-up isotonic regression finds the best least-squares approximation to a function that is monotonically decreasing to a critical point $c$ and then monotonically increasing. This algorithm is used to fit the sequence of spacings between adjacent points, as illustrated in Figure~\ref{fig:plots_1d}. The spacings attain their minimum at the peak of the distribution. The function is then integrated to obtain the cumulative distribution function $F$. If the $D_X$ statistic lies above a certain threshold $\tau_{N}$, then the unimodality hypothesis is rejected. In this study we used a threshold of $\tau_{N}=\alpha/\sqrt{N}$ with $\alpha=1.2$ (see Appendix \ref{appendixSensitivity}).
+is the empirical distribution and $F$ is a unimodal cumulative distribution function that approximates $S_X$. In contrast to Hartigan's original method, we use down-up isotonic regression to determine $F$. As outlined in Appendix \ref{appendixUpdown}, down-up isotonic regression finds the best least-squares approximation to a function that is monotonically decreasing to a critical point $c$ and then monotonically increasing. This algorithm is used to fit the sequence of spacings between adjacent points, as illustrated in Figure~\ref{fig:plots_1d}. The spacings attain their minimum at the peak of the distribution. The function is then integrated to obtain the cumulative distribution function $F$. If the $D_X$ statistic lies above a certain threshold $\tau_{n}$, then the unimodality hypothesis is rejected. In this study we used a threshold of $\tau_{n}=\alpha/\sqrt{n}$ with $\alpha=1.2$ (see Appendix \ref{appendixSensitivity}).
 
-Hartigan's test only produces an accept/reject result, and does not supply an optimal cut point separating the clusters. Let $x_1<\dots<x_N$ be the sorted (assumed distinct) real numbers (input data samples). Our goal is to obtain such a cut point $c$. Let $s_j$ denote the spacing between adjacent points $x_j$ and $x_{j+1}$, which is an approximation to the reciprocal of density at this location (we assume that the $x_j$ are all distinct). To detect a density dip, we normalize these spacings by setting 
+Hartigan's test only produces an accept/reject result, and does not supply an optimal cut point separating the clusters. Let $x_1<\dots<x_n$ be the sorted (assumed distinct) real numbers (input data samples). Our goal is to obtain such a cut point $c$. Let $s_j$ denote the spacing between adjacent points $x_j$ and $x_{j+1}$, which is an approximation to the reciprocal of density at this location (we assume that the $x_j$ are all distinct). To detect a density dip, we normalize these spacings by setting 
 $$\tilde{s}_j=\frac{s_j}{t_j},$$
 where $t_j$ is the corresponding spacing for the approximating unimodal distribution obtained above. As shown in \ref{fig:plots_1d}, we can then fit the new sequence of spacings using up-down isotonic regression, since we expect the normalized spacings to increase at the dip. The cut point is selected at the peak of this up-down fit to the spacings. 
 
-There is a flaw with Hartigan's test in the case where the number of points in one cluster (say on the far left) is very small compared with the total size $N$. This is because the absolute size of the dip depends only on the region at the interface between the two clusters, whereas the test for rejection becomes increasingly stringent with increasing $N$. To remedy this we compute a series of dip tests of sizes $4,8,16,32,\dots,\lfloor\log_2 N\rfloor$. For each size, two tests are performed, one starting from the left (more negative) side of the dataset, and one starting from the right (more positive). As soon as the unimodality hypothesis is rejected in one of these tests, the algorithm halts and the null hypothesis is rejected, and the cut point for that segment is returned. Otherwise it is accepted.
+There is a flaw with Hartigan's test in the case where the number of points in one cluster (say on the far left) is very small compared with the total size $n$. This is because the absolute size of the dip depends only on the region at the interface between the two clusters, whereas the test for rejection becomes increasingly stringent with increasing $n$. To remedy this we compute a series of dip tests of sizes $4,8,16,32,\dots,\lfloor\log_2 n\rfloor$. For each size, two tests are performed, one starting from the left (more negative) side of the dataset, and one starting from the right (more positive). As soon as the unimodality hypothesis is rejected in one of these tests, the algorithm halts and the null hypothesis is rejected, and the cut point for that segment is returned. Otherwise it is accepted.
 
 \begin{figure}
 \begin{center}
@@ -128,7 +132,11 @@ There is a flaw with Hartigan's test in the case where the number of points in o
 \includegraphics[width=5.5in]{images/decision_boundaries.eps}
 \end{center}
 \caption{
-Placement of decision boundaries for ISO-SPLIT is more flexible than for k-means clustering. In ISO-SPLIT, the assumption is that any two clusters are separated by a hyperplane. Unlike in k-means, which assumes all clusters have the same variance, this hyperplane may be positioned closer to one of the centroids than the other.
+Illustration that the
+placement of decision boundaries for ISO-SPLIT is more flexible than for k-means clustering.
+The left panel shows an artificial 2D dataset where each of the three labels has points drawn from bivariate Gaussian pdfs. The middle panel shows the result of clustering with ISO-SPLIT, and the decision lines (in general hyperplanes).
+The right panel shows the same using k-means. Unlike in k-means, which assumes all clusters have the same variance, in ISO-SPLIT hyperplanes may be positioned closer to one of the centroids than the other, and
+need not be orthogonal to the line connecting centroids. (See color online.)
 }
 \label{fig:decision_boundaries}
 \end{figure}
@@ -137,20 +145,20 @@ Placement of decision boundaries for ISO-SPLIT is more flexible than for k-means
 
 \label{isosplit-algorithm}
 
-In this section we address the $n$-dimensional situation ($n\geq2$) and describe an iterative procedure, termed ISO-SPLIT, in which the 1D algorithm is repeated as a kernel operation. The decision boundaries are less restrictive than $k$-means which always splits space into Voronoi cells with respect to the centroids, as illustrated in Figure~\ref{fig:decision_boundaries}.
+In this section we address the $p$-dimensional situation ($p\geq2$) and describe an iterative procedure, termed ISO-SPLIT, in which the 1D routine is repeated as a kernel operation. The decision boundaries are less restrictive than $k$-means which always splits space into Voronoi cells with respect to the centroids, as illustrated in Figure~\ref{fig:decision_boundaries}.
 
-The proposed procedure is outlined in Algorithm~\ref{alg:main_algorithm}. The input is a collection of $N$ points in $\mathbb{R}^n$, and the output is the collection of corresponding labels (or cluster memberships). The approach is similar to agglomerative hierarchical methods in that we start with a large number of clusters (output of \emph{InitializeLabels}) and iteratively reduce the number of clusters until convergence. However, in addition to merging clusters the algorithm may also redistribute data points between adjacent clusters. This is in contrast to agglomerative hierarchical methods. At each iteration, the two \emph{closest} clusters (that have not yet been handled) are selected and all data points from the two sets are projected onto a line orthoganal to the proposed hyperplane of separation. The 1D split test from the previous section is applied (see above) and then the points are redistributed based on the optimal cut point, or if no statistically significant cut point is found the clusters are merged. This procedure is repeated until no pair of unhandled clusters remains.
+The proposed procedure is outlined in Algorithm~\ref{alg:main_algorithm}. The input is a collection of $n$ points in $\mathbb{R}^p$, and the output is the collection of corresponding labels (or cluster memberships). The approach is similar to agglomerative hierarchical methods in that we start with a large number of clusters (output of \emph{InitializeLabels}) and iteratively reduce the number of clusters until convergence. However, in addition to merging clusters the algorithm may also redistribute data points between adjacent clusters. This is in contrast to agglomerative hierarchical methods. At each iteration, the two \emph{closest} clusters (that have not yet been handled) are selected and all data points from the two sets are projected onto a line orthogonal to the proposed hyperplane of separation. The 1D split test from the previous section is applied (see above) and then the points are redistributed based on the optimal cut point, or if no statistically significant cut point is found the clusters are merged. This procedure is repeated until all pairs of clusters are handled.
 
 \spacingset{0.95} % Change spacing for algorithm
 \algrenewcomment[1]{\(\triangleright\) #1}
 \begin{algorithm}
 \caption{}
 \begin{algorithmic}
-\Function{ISO-SPLIT}{$\{y_1,\dots,y_N\}$,$\alpha$}
-\State $\{L_1,\dots,L_N\} \gets \text{InitializeLabels} (\{y_1,\dots,y_N\})$
+\Function{ISO-SPLIT}{$\{y_1,\dots,y_n\}$,$\alpha$}
+\State $\{L_1,\dots,L_n\} \gets \text{InitializeLabels} (\{y_1,\dots,y_n\})$
 \State $\text{UsedPairs} \gets \{\}$
 \Loop
-	\State $[k_1,k_2,\text{exists}] \gets \text{FindClosestPair}(\{y_1,\dots,y_N\},\{L_1,\dots,L_N\},\text{UsedPairs})$
+	\State $[k_1,k_2,\text{exists}] \gets \text{FindClosestPair}(\{y_1,\dots,y_n\},\{L_1,\dots,L_n\},\text{UsedPairs})$
 	\If{$\text{not }\text{exists}$} \Comment{Converged}
 		\State $\text{\textbf{break}}$ 
 	\EndIf
@@ -182,13 +190,13 @@ The proposed procedure is outlined in Algorithm~\ref{alg:main_algorithm}. The in
 \end{algorithm}
 \spacingset{1.45} % DON'T change the spacing!
 
-The best line of projection may be chosen in various ways. The simplest approach is to use the line connecting the centroids of the two clusters of interest. Although this choice may be sufficient in most situations, the optimal hyperplane of separation may not be orthogonal to this line. The approach we used in our implementation is to estimate the covariance matrix of the data in the two clusters (assuming Gaussian distributions with equal variances) and use this two whiten the data prior to using the above method. The function \emph{GetProjectionDirection} in Algorithm~\ref{alg:main_algorithm} returns a unit vector $V$ representing the direction of the optimal projection line, and the function \emph{Project} simply returns the inner product of this vector with each data point.
+The best line of projection may be chosen in various ways. The simplest approach is to use the line connecting the centroids of the two clusters of interest. Although this choice may be sufficient in most situations, the optimal hyperplane of separation may not be orthogonal to this line. The approach we used in our implementation is to estimate the covariance matrix of the data in the two clusters (assuming Gaussian distributions with equal variances) and use this to whiten the data prior to using the above method. The function \emph{GetProjectionDirection} in Algorithm~\ref{alg:main_algorithm} returns a unit vector $V$ representing the direction of the optimal projection line, and the function \emph{Project} simply returns the inner product of this vector with each data point.
 
 Similarly, there are various approaches for choosing the closest pair of clusters at each iteration (\emph{FindClosestPair}). One way is to minimize the distance between the two cluster centroids. Note, however, that we don't want to repeat the same 1D kernel operation more than once. Therefore, the closest pair that has not yet been handled is chosen. In order to avoid excessive iterations we used a heuristic for determining whether a particular cluster pair (or something very close to it) had been previously attempted.
 
 The function \emph{InitializeLabels} creates an initial labeling (or partition) of the data. This may be implemented using the $k$-means algorithm with the number of initial clusters chosen to be much larger than the expected number of clusters in the dataset, the assumption being that the output should not be sensitive once $K_\text{initial}$ is large enough (see Appendix \ref{appendixSensitivity}). For our tests we used the minimum of $20$ and four times the true number of clusters. Since datasets may always be constructed such that our choice of $K_\text{initial}$ is not large enough, we will seek to improve this initialization step in future work.
 
-The critical step is \emph{ComputeOptimalCutpoint}, which is the 1D clustering procedure described in the previous section, using a threshold of $\tau_N=\alpha/\sqrt{N}$.
+The critical step is \emph{ComputeOptimalCutpoint}, which is the 1D clustering procedure described in the previous section, using a threshold of $\tau_n=\alpha/\sqrt{n}$.
 
 %\begin{figure}
 %\begin{center}
@@ -206,7 +214,7 @@ The critical step is \emph{ComputeOptimalCutpoint}, which is the 1D clustering p
 \includegraphics[width=5.5in]{images/simulation2.eps}
 \end{center}
 \caption{
-K-means assumes that the cluster populations and variances are all the same. In this example (corresponding to \textbf{Simulation 2 (Anisotropic)} below), two relatively small clusters are merged by k-means while a larger cluster is split. On the other hand, ISO-SPLIT makes no assumptions about relative cluster sizes and is able to handle this situation. Gaussian mixture clustering with unknown K (determined using BIC) also fails in this case. DBSCAN fails because the clusters do not all have the same density. Note that ISO-SPLIT was not given information about the true number of clusters or the expected density.
+K-means assumes that the cluster populations and variances are all the same. In this 2D example (corresponding to the $K=6$ case of \textbf{Simulation 2 (Anisotropic)} below), two relatively small clusters are merged by k-means while a larger cluster is split. On the other hand, ISO-SPLIT makes no assumptions about relative cluster sizes, thus is able to handle this situation. Gaussian mixture clustering with unknown $K$ (determined using BIC) also fails in this case. DBSCAN fails because the clusters do not all have the same density. Note that ISO-SPLIT was not given information about the true number of clusters nor the expected density.
 }
 \label{fig:simulation2}
 \end{figure}
@@ -217,7 +225,8 @@ K-means assumes that the cluster populations and variances are all the same. In 
 \includegraphics[width=5.5in]{images/example_dbscan.eps}
 \end{center}
 \caption{
-Unlike ISO-SPLIT, DBSCAN can handle the non-convex situation where clusters cannot be separated by hyperplanes. However, the scale parameter $\epsilon$ must be properly chosen.
+Clustering of synthetic 2D data with $K=2$ clusters (one of which is non-convex) which cannot be separated by a hyperplane.
+Unlike ISO-SPLIT, DBSCAN can handle this situation well. However, as the last two panels show, the scale parameter $\epsilon$ must be properly chosen.
 }
 \label{fig:example_dbscan}
 \end{figure}
@@ -241,7 +250,7 @@ Histogram of the 1D probability distribution used to generate skewed, non-Gaussi
 \includegraphics[width=5.5in]{images/simulation1.eps}
 \end{center}
 \caption{
-Example run from \textbf{Simulation 1 (Isotropic)}. All investigated algorithms perform well when clusters are well-spaced and isotropic with equal variances and populations.
+Example run from \textbf{Simulation 1 (Isotropic)}. All investigated approaches perform well when clusters are well-spaced and isotropic with equal variances and populations.
 }
 \label{fig:simulation1}
 \end{figure}
@@ -274,7 +283,7 @@ Example run from \textbf{Simulation 4} in which clusters are tightly packed ($z_
 \includegraphics[width=5.5in]{images/simulation5.eps}
 \end{center}
 \caption{
-Projection onto two dimensions of an example run from \textbf{Simulation 5} with the number of dimensions equal to $n=6$. ISO-SPLIT performs well in this case whereas all other algorithms struggle apart from GMM when given the correct $K$.
+Projection onto two dimensions of an example run from \textbf{Simulation 5} with the number of dimensions equal to $p=6$. ISO-SPLIT performs well in this case whereas all other approaches struggle apart from GMM when given the correct $K$.
 }
 \label{fig:simulation5}
 \end{figure}
@@ -330,7 +339,7 @@ Projection onto two dimensions of an example run from \textbf{Simulation 5} with
 \end{tabular}
 \caption{
 \label{table:simulations}
-Average accuracies over $20$ trial simulations with standard errors. All data, except for in Simulation 5, were generated in two dimensions ($n=2$). \textbf{Simulation 1}: Populations were $500$ per cluster, $\xi=0$, $\zeta=0$, and cluster separations of $z_0=2.5$ (see text for details). \textbf{Simulation 2}: Populations were randomly chosen between $100$ and $1000$ with $\xi=1.2$, $\zeta=2$, and cluster separations of $z_0=2.5$. \textbf{Simulation 3}: Same as Simulation 2 except with non-Gaussian/skewed clusters (see text for details). \textbf{Simulation 4}: Same as Simulation 1 except with clusters chosen closer together using $z_0=1.7$. \textbf{Simulation 5}: Same as the Simulation 2 except with a higher number of dimensions $n=6$.
+Average accuracies over $20$ trial simulations with standard errors. All data, except for in Simulation 5, were generated in two dimensions ($p=2$). \textbf{Simulation 1}: Sample sizes were $500$ per cluster, $\xi=0$, $\zeta=0$, and cluster separations of $z_0=2.5$ (see text for details). \textbf{Simulation 2}: Sample sizes were randomly chosen between $100$ and $1000$ with $\xi=1.2$, $\zeta=2$, and cluster separations of $z_0=2.5$. \textbf{Simulation 3}: Same as Simulation 2 except with non-Gaussian/skewed clusters (see text for details). \textbf{Simulation 4}: Same as Simulation 1 except with clusters chosen closer together using $z_0=1.7$. \textbf{Simulation 5}: Same as the Simulation 2 except with a higher number of dimensions $p=6$.
 }
 \end{table}
 \spacingset{1.45} % DON'T change the spacing!
@@ -341,20 +350,26 @@ Average accuracies over $20$ trial simulations with standard errors. All data, e
 \includegraphics[width=5.5in]{images/simulation_result_graph.eps}
 \end{center}
 \caption{
-Results of simulations from Table \ref{table:simulations} with $6$ true clusters. Accuracies for ISO-SPLIT are at least comparable to the other algorithms in all cases except for when clusters are tightly packed (Simulation 4). ISO-SPLIT yields the highest accuracy in the non-Gaussian clusters case (Simulation 3). ISO-SPLIT and GMM (BIC) were the only algorithms for which no adjustable parameters were specified.
+Results of simulations from Table \ref{table:simulations} with $6$ true clusters. Accuracies for ISO-SPLIT are at least comparable to the other approaches in all cases except for when clusters are tightly packed (Simulation 4). ISO-SPLIT yields the highest accuracy in the non-Gaussian clusters case (Simulation 3). ISO-SPLIT and GMM (BIC) were the only algorithms for which no adjustable parameters were specified.
 }
 \label{fig:result_bars}
 \end{figure}
 
-\section {Algorithm comparison via simulation}
+\section {Method comparison via simulation}
 \label{algorithm_comparison}
 
-A series of experiments were performed to compare the various algorithms considered in this paper. The accuracy measure, related to the F-measure \cite[Ch.~17]{zaki-book}, is defined as 
-$$a=\frac{1}{K}\sum_{c=1}^K \min\left(\frac{n_{c,\pi(c)}}{n_{c,*}},\frac{n_{c,\pi(c)}}{n_{*,\pi(c)}}\right),$$
-where $K$ is the true number of clusters, $n_{i,j}$ is the number of points in true class $i$ labeled by the algorithm as class $j$, $n_{i,*}=\sum_j n_{i,j}$, $n_{*,j}=\sum_i n_{i,j}$, and $\pi(c)$ is the class number in the second labeling matching most closely to class $c$ in the true labeling (i.e., maximizing $n_{c,\pi(c)}$).
-The average is taken over all clusters (rather than datapoints) so that the larger or denser clusters do not contribute with greater weight. Note also that the contribution of each cluster is the minimum of (a) the extent to which the cluster is not split, and (b) the extent to which the cluster is not merged with another cluster. Thus a contribution of $100\%$ means that the cluster is labeled perfectly with respect to both sensitivity and specificity.
+A series of experiments were performed to compare the various approaches considered in this paper.
+We use an accuracy measure
+$$a=\frac{1}{K}\sum_{c=1}^K \min\left(\frac{n_{c,\pi(c)}}{n_c},\frac{n_{c,\pi(c)}}{n'_{\pi(c)}}\right),$$
+where $K$ is the true number of clusters, $n_{i,j}$ is the number of points in true class $i$ labeled by the algorithm as class $j$, $n_i:=\sum_j n_{i,j}$ is the true size (population) of cluster $i$, and $n'_j:=\sum_i n_{i,j}$ the size of the found cluster $j$. Finally, $\pi(c)$ is the class number in the second labeling matching most closely to class $c$ in the true labeling (i.e., maximizing $n_{c,\pi(c)}$); note that this need not be a permutation of the original labels.
+The summand of the measure $a$ is the smaller of {\em precision} and {\em recall}, and is thus a lower bound on
+the F-measure \cite[Ch.~17]{zaki-book} (the latter being the harmonic mean of precision and recall).
+We prefer this measure of cluster similarity over many others in the literature because it
+weights each cluster equally, allowing us to assess fairly the performance when there is a wide range of cluster populations. (Such a metric is also the relevant one for the application presented in Sec.~\ref{s:spike}.)
+%The average is taken over all clusters (rather than datapoints) so that the larger or denser clusters do not %contribute with greater weight.
+Note also that the contribution of each cluster is the minimum of (a) the extent to which the cluster is not split, and (b) the extent to which the cluster is not merged with another cluster. Thus a contribution of $100\%$ means that the cluster is labeled perfectly with respect to both sensitivity (recall) and specificity. Unlike the F-measure, a value of $50\%$ could mean that the cluster was either split evenly or merged with a cluster of the same size.
 
-Simulations in two dimensions and higher were performed by generating random samplings from a mixed multivariate Gaussian distribution (except for the Skewed simulation) with clusters corresponding to the individual Gaussian subpopulations. The centers, spreads, orientations, anisotropies, and populations of the Gaussians were varied randomly. Specifically, the random covariance matrix for each cluster was defined as
+Simulations in two dimensions and higher were performed by generating random samplings from a mixed multivariate Gaussian distribution (except for the Skewed simulation) with clusters corresponding to the individual Gaussian sub-populations. The centers, spreads, orientations, anisotropies, and populations of the Gaussians were varied randomly. Specifically, the random covariance matrix for each cluster was defined as
 \[
 \Sigma=R
 \left(
@@ -377,38 +392,50 @@ ISO-SPLIT was implemented in MATLAB with kernel routines in C++
 (a URL for our software is given in Sec.~\ref{s:conc}).
 The other clustering methods were implemented as follows.
 We used a MATLAB implementation%
-\footnote{Specifically we used the code from \cite{kmeanspp_sorber} corrected to use
-  the original ``$D^2$ weighting'' recommended in \cite{kmeanspp}.}
+\footnote{Specifically we used the code from \citep{kmeanspp_sorber} corrected to use
+  the original ``$D^2$ weighting'' recommended in \citep{kmeanspp}.}
  of k-means++
- with $100$ trials/restarts. GMM was performed using \cite{vlfeat} in MATLAB using EM iterations with 20 restarts. Both k-means and GMM had the advantage of being provided with the true number of clusters as input. A second run of GMM was used to automatically select the number of clusters using the Bayesian information criterion (BIC) (\cite{BIC}). We used a multi-core C++ implementation of DBSCAN (\cite{dbscan_dbp}), with $\epsilon$ tuned by hand for each simulation to yield the highest average accuracy measure.
+ with $100$ trials/restarts. GMM was performed using \citet{vlfeat} in MATLAB using EM iterations with 20 restarts. Both k-means and GMM had the advantage of being provided with the true number of clusters as input. A second run of GMM was used to automatically select the number of clusters using the Bayesian information criterion (BIC) \citep{BIC}. We used a multi-core C++ implementation of DBSCAN \citep{dbscan_dbp}, with $\epsilon$ tuned by hand for each simulation to yield the highest average accuracy measure.
 
 All methods performed well in the Isotropic simulation under the conditions of equal populations, equal variances, and isotropic clusters, the ideal scenario for k-means (Figure \ref{fig:simulation1}).
 For the second simulation, ISO-SPLIT and GMM performed best. As expected, k-means did not do as well since the clusters were not isotropic and had unequal populations. The unequal cluster densities caused problems for DBSCAN. See Figure \ref{fig:simulation2}.
 
-The number of dimensions was increased to $6$ in the fifth simulation. In this case ISO-SPLIT performed at least comparably with the other algorithms. DBSCAN particularly struggled in this higher dimensional case. When $K$ was not known, GMM also struggled as illustrated in Figure \ref{fig:simulation5}.
+The number of dimensions was increased to $6$ in the fifth simulation. In this case ISO-SPLIT performed at least comparably with the other methods. DBSCAN particularly struggled in this higher dimensional case. When $K$ was not known, GMM also struggled as illustrated in Figure \ref{fig:simulation5}.
 
-In general, we see from the overall summary in Figure~\ref{fig:result_bars} that ISO-SPLIT did as well or better than all other algorithms except in Simulation 4 for which clusters were tightly packed, presumably because the tighter clusters were no longer separated by regions of significantly lower density (see Figure \ref{fig:simulation4}).
+In general, we see from the overall summary in Figure~\ref{fig:result_bars} that ISO-SPLIT did as well or better than all other methods except in Simulation 4 for which clusters were tightly packed, presumably because the tighter clusters were no longer separated by regions of significantly lower density (see Figure \ref{fig:simulation4}).
 
 \section {Application to spike sorting data}
 \label{s:spike}
 
-The algorithms considered in this paper were applied to spike sorting of neural electrophysiological signals, that is, the clustering of spiking events in a time series into $K$ clusters that can often be associated with individual neurons. Clustering is a key step in spike sorting.
+The algorithms considered in this paper were applied to spike sorting of neural electrophysiological signals, that is, the clustering of spiking events in a time series into $K$ clusters that can often be associated with individual neurons. Clustering is a key step in spike sorting. More specifically, we took 7 channels of data from a set of adjacent electrodes in a multielectrode array which records voltages from an {\em ex vivo} monkey retina \citep{litke}; the 2 minutes of 20 kHz sampled time series data was supplied to us by the Chichilnisky Lab at Stanford. A set of points in $\mathbb{R}^{10}$ that needed to be clustered was created as follows. Firstly the time series was high-pass filtered at 300 Hz (which insures that the signal mean is zero), then windows of time series of length 60 samples were extracted in which the minimum voltage dropped below $-120 \mu$V. (We also applied an automatic procedure to remove windows that did not appear to be single spike events.) This gave $n=7275$ windows. The data in each window was upsampled by a factor of 3 using Hann-windowed sync interpolation, then negative-peak aligned to the central time point, then stacked to give a length-1029 column vector. Dimension reduction to $p=10$ dimensions was finally done using PCA; that is, the 1029-by-7275 matrix $A$ was replaced by the first 10 columns of $V^T A$, where $V$ is the matrix 
+% ahb corrected the # rows.
+whose columns are the eigenvectors of $AA^T$ ordered by descending eigenvalue.
+This dimension reduction accounted for a fraction $68\%$ of the total variance in the original data.
+Columns of the resulting $A$ gave the 7275 points to cluster.
 
-[Boilerplate text for describing dataset: dl12\_20151208\_NNF\_r1\_tet16\_17]
+The resulting clustering (neuron labelings) are shown in Figure \ref{fig:real_data_1} with the centroid waveforms for each cluster displayed in Figure \ref{fig:real_data_2}. The adjustable parameters for k-means, GMM, and DBSCAN were carefully chosen to yield the same number of clusters ($K=8$) as ISO-SPLIT. Each of the algorithms produced a splitting into into qualitatively distinct centroid waveforms, suggesting that at least 8 detectable neural units are present. Various validation methods, and human judgements, are now commonly applied to determine whether each cluster is a single neural unit \citep[e.g.][]{Hill2011,validspike}; we do not attempt to perform that here.
 
-After standard preprocessing, including bandpass filter and channel whitening, spiking events were detected at timepoints where the signal exceeded a fixed threshold (around 5 standard deviations above the mean). Time windows (or clips) of 3.3 milliseconds (100 timepoints) were extracted around each identified timepoint. These clips were mapped into PCA space and ISO-SPLIT clustering was applied. 
-
-The resulting clustering (neuron labelings) along with the centroid waveforms are shown in Figure \ref{fig:real_data_1}. Various validation methods, and human judgements, are now commonly applied to determine whether each cluster is a single neural unit, e.g., \cite{Hill2011}; we do not attempt to perform that here. We emphasize that ISO-SPLIT required no adjustment of free parameters.
+We emphasize that ISO-SPLIT required no adjustment of free parameters, in contrast to all but the (poorly-performing) GMM with BIC. Indeed, when the BIC was used to select $K$ in GMM, many more clusters were identified, most of them duplicates, or artificially split clusters (see Figure \ref{fig:real_data_2}). An additional run of DBSCAN with $\epsilon$ reduced from $70$ to $60$ identified an additional cluster, demonstrating the sensitivity of the output to adjustments in this parameter. Further analysis is required to determine which results are closer to the truth.
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{images/real_data.eps}
+\includegraphics[width=5.5in]{images/real_data_1.eps}
 \end{center}
 \caption{
-Needed
-%  Spike sorting on real data. The first three dimensions of the 10-dimensional PCA feature space are shown, with coloring indicating cluster (neuronal unit) membership produced by each clustering algorithm indicated. The classifications were highly consistent between the various algorithms when k-means, GMM, and DBSCAN were tuned to yield the same number of clusters as ISO-SPLIT.
+  Spike sorting clustering application on real data with $n=7275$ points in 10 dimensions. The first three dimensions of the 10-dimensional PCA feature space are shown, with coloring indicating cluster (neuronal unit) membership produced by each clustering algorithm indicated. The classifications were highly consistent between the various methods when k-means, GMM, and DBSCAN were tuned to yield the same number of clusters as ISO-SPLIT.
+  The red dotted lines indicate axes intersecting at the origin.
 }
 \label{fig:real_data_1}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=5.5in]{images/real_data_2.eps}
+\end{center}
+\caption{
+Spike waveforms corresponding to the centroids of the clusters from Figure \ref{fig:real_data_1}. Rows represent electrode channels and columns represent distinct neurons/clusters.
+}
+\label{fig:real_data_2}
 \end{figure}
 
 \spacingset{1.0} % Change spacing for table
@@ -467,35 +494,35 @@ Average computation times in seconds per trial run for the simulations of Table 
 
 \section {Computational efficiency}
 
-Each iteration of ISO-SPLIT comprises two steps. The first step, projection onto 1D space, has computation time $O(N_0 n)$ where $n$ is the number of dimensions and $N_0<N$ is the number of points involved in the two clusters of interest. The second step is 1D clustering using the Hartigan test and isotonic regression and has time complexity $O(N_0)$. Due to the complexity of the cluster redistributions at each step, it is difficult to theoretically estimate the number iterations required for convergence.
+Each iteration of ISO-SPLIT comprises two steps. The first step, projection onto 1D space, has computation time $O(n_0 p)$ where $p$ is the number of dimensions and $n_0<n$ is the number of points involved in the two clusters of interest. The second step is 1D clustering using the Hartigan test and isotonic regression and has time complexity $O(n_0)$. Due to the complexity of the cluster redistributions at each step, it is difficult to theoretically estimate the number iterations required for convergence.
 
-Table \ref{table:simulations2} shows empirical average computation times for the simulations of Table \ref{table:simulations}. Overall prefactors in the running times should not be given too much meaning, since they are highly implementation-dependent. In almost every case, GMM with unknown $K$ took the longest since the algorithm needed to be run several times to find the optimal number of clusters using the BIC. Even when $K$ was known, GMM and k-means were rerun many times (20 for GMM and 100 for k-means), and therefore took longer on average than ISO-SPLIT in almost every case. With a highly optimized C++ implementation (\cite{dbscan_dbp}), DBSCAN was the most efficient algorithm of those considered. There was a significant increase in ISO-SPLIT's run time from 6 to 12 clusters (especially in Simulation 5), but it should be noted that both $K$ and $N$ were increased by a factor of $2$, since the number of points per cluster was fixed.
+Table \ref{table:simulations2} shows empirical average computation times for the simulations of Table \ref{table:simulations}. Overall prefactors in the running times should not be given too much meaning, since they are highly implementation-dependent. In almost every case, GMM with unknown $K$ took the longest since the algorithm needed to be run several times to find the optimal number of clusters using the BIC. Even when $K$ was known, GMM and k-means were rerun many times (20 for GMM and 100 for k-means), and therefore took longer on average than ISO-SPLIT in almost every case. With a highly optimized C++ implementation \citep{dbscan_dbp}, DBSCAN was the most efficient algorithm of those considered. There was a significant increase in ISO-SPLIT's run time from 6 to 12 clusters (especially in Simulation 5), but it should be noted that both $K$ and $n$ were increased by a factor of $2$, since the number of points per cluster was fixed.
 
-Future work will investigate the theoretical bounds on the number of iterations required for convergence. Here we present empirical estimates for the scaling properties with increasing values of $N$ (the number of samples), $n$ (the number of dimensions), and $K_\text{true}$ (the true number of clusters). The most time-consuming step in each iteration (isotonic regression) is independent of both $n$ and $K_\text{true}$ but the unknown quantity is the number of iterations required for convergence. Figure \ref{fig:computation_times_01} shows the results of three simulations suggesting that computation time scales linearly with all three simulation parameters.
+Future work will investigate the theoretical bounds on the number of iterations required for convergence. Here we present empirical estimates for the scaling properties with increasing values of $n$ (the number of samples), $p$ (the number of dimensions), and $K_\text{true}$ (the true number of clusters). The most time-consuming step in each iteration (isotonic regression) is independent of both $p$ and $K_\text{true}$ but the unknown quantity is the number of iterations required for convergence. Figure \ref{fig:computation_times_01} shows the results of three simulations suggesting that computation time scales linearly with all three simulation parameters.
 
-Using code profiling in MATLAB, we found that the majority of time (approx. 90\%) was spent performing 1D clustering (Section~\ref{clustering_1d}) as compared with finding the best pair of clusters to compare, computing centroids, and projecting data onto lines. Of course this figure will depend on $n$, $K$, $N$, and the structure of the data.
+Using code profiling in MATLAB, we found that the majority of time (approx. 90\%) was spent performing 1D clustering (Section~\ref{clustering_1d}) as compared with finding the best pair of clusters to compare, computing centroids, and projecting data onto lines. Of course this figure will depend on $p$, $K$, $n$, and the structure of the data.
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=5.5in]{images/computation_times_01.eps}
+\includegraphics[width=6in]{images/computation_times_01.eps}
 \end{center}
 \caption{
-Empirical dependence of average computation time on three simulation parameters, averaged over $20$ repeats; (A) number of points per sample, with number of true clusters fixed at $6$ and $n$ fixed at $2$; (B) number of true clusters, with $N$ fixed at $1000$ and $n$ fixed at $2$; (C) number of dimensions with $N$ fixed at $1000$ and number of true clusters fixed at $6$, with noise dimensions added past the first two dimensions.
+Empirical dependence of average computation time on three simulation parameters, averaged over $20$ repeats; (A) number of points per sample, with number of true clusters fixed at $6$ and $p$ fixed at $2$; (B) number of true clusters, with $n$ fixed at $1000$ and $p$ fixed at $2$; (C) number of dimensions with $n$ fixed at $1000$ and number of true clusters fixed at $6$, with noise dimensions added past the first two dimensions.
 }
 \label{fig:computation_times_01}
 \end{figure}
 
-As mentioned in the introduction, pdfCluster (\cite{pdfcluster}) is also a non-parametric, density-based algorithm. A probability density function is constructed from the estimated density of datapoints. The clustering is then performed using this continuous function of space, and does not depend on the hyperplane-separation assumption required by ISO-SPLIT. However, empirically we found the R implementation (\cite{pdfclusterR}) to be time-consuming compared with ISO-SPLIT for larger datasets. To compare run times, we ran the two algorithms three times using the parameters of Simulation 2, with 3, 6, and 12 clusters (N = 2400, 4200, 7800). For ISO-SPLIT, the run times were 0.32, 0.44, and 2.1 seconds, respectively. The classification output from pdfCluster (with default parameters) qualitatively matched the output from ISO-SPLIT, but the computation times were 8.9, 31, and 180 seconds, respectively. The discrepancy was more dramatic when increasing to six dimensions where pdfCluster had 380 seconds of processing time for only 3 clusters, compared with less than 1 second for ISO-SPLIT.
-
 \section {Discussion}
 
-We have shown that, for the target application of spike sorting, our new algorithm produces results that are consistent with those of standard clustering algorithms (k-means, GMM, DBSCAN). Yet the key advantage of ISO-SPLIT is that it does not require selection of scale parameters nor the number of clusters. This is very important in situations where manual processing steps are to be avoided.
+We have shown that, for the target application of spike sorting, our new technique produces results that are consistent with those of standard clustering techniques (k-means, GMM, DBSCAN). Yet the key advantage of ISO-SPLIT is that it does not require selection of scale parameters nor the number of clusters. This is very important in situations where manual processing steps are to be avoided.
 %for example when minimizing human bias or in order to increment repeatability.
-Automation is also critical when hundreds of clustering runs must be executed within a single analysis, e.g., applications of spike sorting with large electrode arrays. Furthermore, the accuracy of ISO-SPLIT appears to exceed that of standard algorithms in the context of many simulations performed in this study. Most notably, it excels when clusters are non-Gaussian with varying populations, orientations, spreads, and anisotropies.
+Automation is also critical when hundreds of clustering runs must be executed within a single analysis, e.g., applications of spike sorting with large electrode arrays. Furthermore, the accuracy of ISO-SPLIT appears to exceed that of standard techniques in the context of many simulations performed in this study. Most notably, it excels when clusters are non-Gaussian with varying populations, orientations, spreads, and anisotropies.
 
-While ISO-SPLIT outperforms standard algorithms in situations satisfying the assumptions of the method, the algorithm has general limitations and is not suited for all contexts. Because ISO-SPLIT depends on statistically significant density dips between clusters, erroneous merging occurs when clusters are positioned close to one another (see the Packed simulation). Certainly this is a challenging scenario for all algorithms, but k-means or mixture models are better suited to handle these cases. On the other hand,
+While ISO-SPLIT outperforms standard methods in situations satisfying the assumptions of the method, the algorithm has general limitations and is not suited for all contexts. Because ISO-SPLIT depends on statistically significant density dips between clusters, erroneous merging occurs when clusters are positioned close to one another (see the Packed simulation). Certainly this is a challenging scenario for all algorithms, but k-means or mixture models are better suited to handle these cases. On the other hand,
 if the underlying density has dips which separate clusters, ISO-SPLIT will
-find them for sufficiently large $N$.
+find them for sufficiently large $n$.
+
+Since the one-dimensional tests are repeated at every iteration as the clusters are merged and redistributed, it is not possible to interpret the significance threshold of the one-dimensional tests in the context of the multi-dimensional clustering. Further exploration is therefore needed to understand the expected false splitting and merging rates.
 
 Our theory depends on the assumption that the data arise from a continuous probability distribution. While no particular noise model is assumed, we do assume that, after projection onto any 1D space, the distribution is locally well approximated by a uniform distribution. This condition is satisfied for any smooth probability distribution. In particular, it guarantees that no two samples have exactly the same value (which could lead to an infinite estimate of pointwise density). Situations where values are drawn from a discrete grid (e.g., an integer lattice) will fail to have this crucial property. One remedy for such scenarios could be to add random offsets to the datapoints to form a continuous distribution.
 
@@ -508,7 +535,7 @@ As mentioned above, a principal advantage of ISO-SPLIT is that it does not requi
 \section{Conclusion}
 \label{s:conc}
 
-A multi-dimensional clustering algorithm, ISO-SPLIT, based on density clustering of one-dimensional projections was introduced. The algorithm was motivated by the electrophysiological spike sorting application. Unlike many existing techniques, the new algorithm does not depend on adjustable parameters such as scale or \emph{a priori} knowledge of the number of clusters. Using simulations, ISO-SPLIT was compared with k-means, Gaussian mixture, and DBSCAN, and was shown to outperform these methods in situations where clusters were separated by regions of relatively lower density and where each pair of clusters could be largely split by a hyperplane. ISO-SPLIT was especially effective for non-Gaussian cluster distributions. Future research will focus on applying the algorithm to additional real-world problems as well as improving computational efficiency.
+A multi-dimensional clustering technique, ISO-SPLIT, based on density clustering of one-dimensional projections was introduced. The algorithm was motivated by the electrophysiological spike sorting application. Unlike many existing techniques, the new algorithm does not depend on adjustable parameters such as scale or \emph{a priori} knowledge of the number of clusters. Using simulations, ISO-SPLIT was compared with k-means, Gaussian mixture, and DBSCAN, and was shown to outperform these methods in situations where clusters were separated by regions of relatively lower density and where each pair of clusters could be largely split by a hyperplane. ISO-SPLIT was especially effective for non-Gaussian cluster distributions. Future research will focus on applying the algorithm to additional real-world problems as well as improving computational efficiency.
 
 A MATLAB/C++ implementation of ISO-SPLIT is freely available
 at the following URL:\\
@@ -517,7 +544,7 @@ at the following URL:\\
 \section*{Acknowledgments}
 
 We have benefited from useful discussions with Leslie Greengard,
-Marina Spivak, Bin Yu, and Cheng Li.
+Marina Spivak, Bin Yu, and Cheng Li, and from the comments of the anonymous reviewers.
 We are grateful for EJ Chichilnisky and his research group
 for supplying us with the retinal neural recording data used
 in section~\ref{s:spike}.
@@ -533,11 +560,11 @@ in section~\ref{s:spike}.
 \begin{algorithmic}
 \Function{UpDownIsotonic}{x}
 	\State \Comment{Isotonic regression for increasing followed by decreasing}
-	\State $N \gets \text{length}(x)$
+	\State $n \gets \text{length}(x)$
 	\State $b \gets \text{FindOptimalB}(x)$
 	\State $y^{(1)} \gets \text{IsotonicIncreasing}([x_1,\dots,x_b])$
-	\State $y^{(2)} \gets \text{IsotonicDecreasing}([x_b,\dots,x_N])$
-	\State $y \gets [y^{(1)}_1,\dots,y^{(1)}_b,y^{(2)}_2,\dots,y^{(2)}_{N-b+1}]$
+	\State $y^{(2)} \gets \text{IsotonicDecreasing}([x_b,\dots,x_n])$
+	\State $y \gets [y^{(1)}_1,\dots,y^{(1)}_b,y^{(2)}_2,\dots,y^{(2)}_{n-b+1}]$
 	\State \Return $y$
 \EndFunction
 \Statex
@@ -551,19 +578,19 @@ in section~\ref{s:spike}.
 	\State \Return $b$
 \EndFunction
 \Statex
-\Function{Reverse}{$[x_1,\dots,x_N]$}
+\Function{Reverse}{$[x_1,\dots,x_n]$}
 	\State \Comment{Reverse the ordering}
-	\State \Return $[x_N,x_{N-1},\dots,x_1]$
+	\State \Return $[x_n,x_{n-1},\dots,x_1]$
 \EndFunction
 \Statex
-\Function{PAVA-MSE}{$[x_1,\dots,x_N]$,$[w_1,\dots,w_N]$}          % ahb fixed {}
+\Function{PAVA-MSE}{$[x_1,\dots,x_n]$,$[w_1,\dots,w_n]$}          % ahb fixed {}
 	\State \Comment{Modified PAVA to return MSE at every index}
 	\State $i \gets 1$, $j \gets 1$
 	\State $\text{count}[i] \gets 1$, $\text{wcount}[i] \gets w_j$
 	\State $\text{sum}[i] \gets w_j x_j$, $\text{sumsqr}[i] \gets w_j x_j^2$
 	\State $\mu_j \gets 0$
 	\State
-	\For{$j=2\dots N$}
+	\For{$j=2\dots n$}
 		\State $i \gets i+1$
 		\State $\text{count}[i] \gets 1$, $\text{wcount}[i] \gets w_j$
 		\State $\text{sum}[i] \gets w_j x_j$, $\text{sumsqr}[i] \gets w_j x_j^2$
@@ -596,16 +623,16 @@ in section~\ref{s:spike}.
 \section {Up-down isotonic regression}
 \label{appendixUpdown}
 
-In this section we outline a computationally efficient variant of isotonic regression that provides the critical step in the kernel operation of ISO-SPLIT. Isotonic regression is a non-parametric method for fitting an ordered set of real numbers by a monotonically increasing (or decreasing) function. Suppose we want to find the best least-squares approximation of the sequence $x_1,\dots,x_N$ by a monotonically increasing sequence. Considering the more general problem that includes weights, we want to minimize the objective function
+In this section we outline a computationally efficient variant of isotonic regression that provides the critical step in the kernel operation of ISO-SPLIT. Isotonic regression is a non-parametric method for fitting an ordered set of real numbers by a monotonically increasing (or decreasing) function. Suppose we want to find the best least-squares approximation of the sequence $x_1,\dots,x_n$ by a monotonically increasing sequence. Considering the more general problem that includes weights, we want to minimize the objective function
 \begin{equation}
-F(y)=\sum_{i=1}^N w_i(y_i-x_i)^2,
+F(y)=\sum_{i=1}^n w_i(y_i-x_i)^2,
 \label{eq:least_squares}
 \end{equation}
 subject to
-$$y_1\leq y_2\leq\dots\leq y_N.$$
-This may be solved in linear time using the pool adjacent violators algorithm (PAVA) (\cite{pava}); we do not include the full pseudocode for this standard algorithm but note that it is essentially the same as PAVA-MSE in Algorithm~\ref{alg:PAVA2}.
+$$y_1\leq y_2\leq\dots\leq y_n.$$
+This may be solved in linear time using the pool adjacent violators algorithm (PAVA) \citep{pava}; we do not include the full pseudocode for this standard algorithm but note that it is essentially the same as PAVA-MSE in Algorithm~\ref{alg:PAVA2}.
 
-As discussed above, ISO-SPLIT depends on a variant of isotonic regression, which we call \emph{updown isotonic regression}. In this case we need to find a turning point $y_b$ such that $y_1\leq y_2\leq\dots\leq y_b$ and $y_b\geq y_{b+1}\dots\geq y_N$. Again we want to minimize $F(y)$ of Equation~\eqref{eq:least_squares}. One way to solve this is to use an exhaustive search for $b\in\{1,\dots,N\}$. However, this would have $O(N^2)$ time complexity.
+As discussed above, ISO-SPLIT depends on a variant of isotonic regression, which we call \emph{updown isotonic regression}. In this case we need to find a turning point $y_b$ such that $y_1\leq y_2\leq\dots\leq y_b$ and $y_b\geq y_{b+1}\dots\geq y_n$. Again we want to minimize $F(y)$ of Equation~\eqref{eq:least_squares}. One way to solve this is to use an exhaustive search for $b\in\{1,\dots,n\}$. However, this would have $O(n^2)$ time complexity.
 
 A modified PAVA that finds the optimal $b$ for the updown case in linear time is presented in Algorithm~\ref{alg:PAVA2}. The idea is to perform isotonic regression from left to right and then right to left using a modified algorithm where the mean-squared error is recorded at each step. The turning point is then chosen to minimize the sum of the two errors.
 
@@ -616,7 +643,7 @@ Downup isotonic regression is also needed by the algorithm. This procedure is a 
 
 In this work we have claimed that ISO-SPLIT does not require parameter adjustments which depend on the application or nature of the dataset, thus facilitating fully automated clustering. However, practically speaking, there are two values mentioned in this paper that need to be set. In this section we demonstrate that the algorithm is not sensitive to these choices provided that they fall within a reasonable range.
 
-First, the threshold $\tau_N=\alpha/\sqrt{N}$ for rejecting the unimodality hypothesis needs to be chosen. To demonstrate, we ran Simulation 2 again with varying $\alpha$. The results are found in Table \ref{table:threshold_dependence}. For $\alpha$ between $1.2$ and $2.0$, the accuracies remained virtually constant.
+First, the threshold $\tau_n=\alpha/\sqrt{n}$ for rejecting the unimodality hypothesis needs to be chosen. To demonstrate, we ran Simulation 2 again with varying $\alpha$. The results are found in Table \ref{table:alpha_dependence}. For $\alpha$ between $1.2$ and $2.0$, the accuracies remained virtually constant.
 
   \begin{table}[t]
 \centering
@@ -673,7 +700,7 @@ Results of Simulation 2 (ISO-SPLIT, 6 clusters) repeated with varying $K_\text{i
 
 Simulations 1-5 required automatic generation of synthetic datasets with fixed numbers of clusters of varying densities, populations, spreads, anisotropies, and orientations. The most challenging programming task was to determine the random locations of the cluster centers. If clusters were spaced out too much then the clustering would be trivial. On the other hand, overlapping clusters cannot be expected to be successfully separated. Here we briefly describe a procedure for choosing the locations such that clusters are tightly packed with the constraint that the solid ellipsoids corresponding to Mahalanobis distance $z_0$ do not intersect. Thus $z_0$ is a constant controlling the tightness of packing, fixed for each simulation. In above simulations we considered $z_0=2.5\text{ and }1.7$.
 
-The clusters are positioned iteratively, one at a time. Each cluster is positioned at the origin and then moved out radially in small increments of a random direction until the non-intersection criteria is satisfied. Thus we only need to determine whether two clusters defined by $(\mu_1,\Sigma_1)$ and $(\mu_2,\Sigma_2)$ are spaced far enough apart. Here $\mu_j$ are the cluster centers and $\Sigma_j$ are the covariance matrices. The problem boils down to determining whether two arbitrary $n$-dimensional ellipsoids intersect. Surprisingly this is a nontrivial task, especially in higher dimensions, but an efficient iterative solution was discovered by \cite{ellipsoid-distance}. For the present study, the Lin-Han algorithm was implemented in MATLAB.
+The clusters are positioned iteratively, one at a time. Each cluster is positioned at the origin and then moved out radially in small increments of a random direction until the non-intersection criteria is satisfied. Thus we only need to determine whether two clusters defined by $(\mu_1,\Sigma_1)$ and $(\mu_2,\Sigma_2)$ are spaced far enough apart. Here $\mu_j$ are the cluster centers and $\Sigma_j$ are the covariance matrices. The problem boils down to determining whether two arbitrary $p$-dimensional ellipsoids intersect. Surprisingly this is a nontrivial task, especially in higher dimensions, but an efficient iterative solution was discovered by \citet{ellipsoid-distance}. For the present study, the Lin--Han algorithm was implemented in MATLAB.
 
 
 \bibliography{isosplit-revision1}
